@@ -15,4 +15,4 @@ Run `hydra --help` for additional options.
 
 ## License
 
-GNU GPLv3+
+GNU GPL v3+
