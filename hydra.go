@@ -55,13 +55,16 @@ var (
 	headersAdd         Headers
 	headersReplace     Headers
 
+	retryQueueLength = flag.Int("r", 1024, "Length of the retry queue")
+
 	postURL   string
 	host      string
 	data      string
 	condition []byte
 
-	jobs chan Job
-	wg   sync.WaitGroup
+	jobs  chan Job
+	retry chan Job
+	wg    sync.WaitGroup
 
 	m   sync.Mutex
 	out io.WriteCloser = os.Stdout
@@ -143,7 +146,28 @@ func worker(n int) {
 		}
 	}
 
-	for job := range jobs {
+	var job Job
+	ok := true
+loop:
+	for {
+		if ok {
+			select {
+			case job, ok = <-jobs:
+				if !ok {
+					continue loop
+				}
+			case job = <-retry:
+			default:
+				break loop
+			}
+		} else {
+			select {
+			case job = <-retry:
+			default:
+				break loop
+			}
+		}
+
 		if *showAttempts {
 			fmt.Fprintf(os.Stderr, "[ATTEMPT] target %s - login %q - pass %q [worker %d]\n", host, job.user, job.pass, n)
 		}
@@ -170,6 +194,10 @@ func worker(n int) {
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Print(err)
+			select {
+			case retry <- job:
+			default:
+			}
 			continue
 		}
 
@@ -182,6 +210,10 @@ func worker(n int) {
 		resp.Body.Close()
 		if err != nil {
 			log.Print(err)
+			select {
+			case retry <- job:
+			default:
+			}
 			continue
 		}
 
@@ -232,6 +264,7 @@ Options:
   -o FILE    Write found login/password pairs to FILE instead of stdout
   -v         Be verbose (show the response from the HTTP server)
   -V         Show login+password for each attempt
+  -r         Length of the retry queue (default: 1024)
 
 Use HYDRA_PROXY environment variable for proxy setup.
 `)
@@ -288,6 +321,7 @@ Use HYDRA_PROXY environment variable for proxy setup.
 		}
 	}
 
+	retry = make(chan Job, *retryQueueLength)
 	jobs = make(chan Job, *numTasks)
 	wg.Add(*numTasks)
 	for i := 0; i < *numTasks; i++ {
