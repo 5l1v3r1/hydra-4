@@ -28,7 +28,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -243,8 +242,6 @@ loop:
 }
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	log.SetFlags(log.Lshortfile)
 
 	flag.Usage = func() {
