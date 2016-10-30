@@ -9,6 +9,6 @@ Hydra is a penetration testing tool exclusively focused on dictionary-attacking 
 
 ## Usage
 
-    hydra -L logins.txt -P passwords.txt http://127.0.0.1/login "user=^USER^&pass=^PASS^" "login failed"
+    hydra -L logins.txt -P passwords.txt http://127.0.0.1/login "user=^USER^&pass=^PASS^" "invalid password"
 
 Run `hydra -help` for additional options.
