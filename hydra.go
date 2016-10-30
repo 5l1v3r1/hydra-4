@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,6 +48,7 @@ var (
 	colonSeparatedFrom = flag.String("C", "", `Load lines in the colon separated "login:pass" format from FILE`)
 	firstOnly          = flag.Bool("f", false, "Exit when a login/password pair is found")
 	invertedCondition  = flag.Bool("i", false, "A fulfilled condition means an attempt was successful")
+	conditionIsRegexp  = flag.Bool("regex", false, "The condition is a regular expression")
 	numTasks           = flag.Int("t", 16, "A number of tasks to run in parallel")
 	verbose            = flag.Bool("v", false, "Be verbose (show the response from the HTTP server)")
 	showAttempts       = flag.Bool("V", false, "Show login+password for each attempt")
@@ -56,10 +58,11 @@ var (
 
 	retryQueueLength = flag.Int("r", 1024, "Length of the retry queue")
 
-	postURL   string
-	host      string
-	data      string
-	condition []byte
+	postURL    string
+	host       string
+	data       string
+	condition  []byte
+	rCondition *regexp.Regexp
 
 	jobs  chan Job
 	retry chan Job
@@ -220,7 +223,12 @@ loop:
 			os.Stderr.Write(body)
 		}
 
-		failed := bytes.Contains(body, condition)
+		var failed bool
+		if rCondition != nil {
+			failed = rCondition.Match(body)
+		} else {
+			failed = bytes.Contains(body, condition)
+		}
 		if *invertedCondition {
 			failed = !failed
 		}
@@ -256,6 +264,7 @@ Options:
   -h header  Add an HTTP header
   -H header  Replace an HTTP header
   -i         A fulfilled condition means an attempt was successful
+  -regex     The condition is a regular expression
   -f         Exit when a login/password pair is found
   -t TASKS   A number of tasks to run in parallel (default: 16)
   -o FILE    Write found login/password pairs to FILE instead of stdout
@@ -308,7 +317,11 @@ Use HYDRA_PROXY environment variable for proxy setup.
 
 	host = parsed.Host
 	data = flag.Arg(1)
-	condition = []byte(flag.Arg(2))
+	if *conditionIsRegexp {
+		rCondition = regexp.MustCompile(flag.Arg(2))
+	} else {
+		condition = []byte(flag.Arg(2))
+	}
 
 	proxy := os.Getenv("HYDRA_PROXY")
 	if proxy != "" {
