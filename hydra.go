@@ -318,7 +318,10 @@ Use HYDRA_PROXY environment variable for proxy setup.
 	host = parsed.Host
 	data = flag.Arg(1)
 	if *conditionIsRegexp {
-		rCondition = regexp.MustCompile(flag.Arg(2))
+		rCondition, err = regexp.Compile(flag.Arg(2))
+		if err != nil {
+			log.Fatal("malformed regular expression")
+		}
 	} else {
 		condition = []byte(flag.Arg(2))
 	}
