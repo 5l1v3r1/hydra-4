@@ -159,8 +159,6 @@ loop:
 					continue loop
 				}
 			case job = <-retry:
-			default:
-				break loop
 			}
 		} else {
 			select {
