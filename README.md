@@ -5,7 +5,7 @@ Hydra is a penetration testing tool exclusively focused on dictionary-attacking 
 
 ## Installation
 
-    go get github.com/opennota/hydra
+    go get -u github.com/opennota/hydra
 
 ## Usage
 
